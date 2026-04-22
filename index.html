@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="referrer" content="no-referrer" />
-  <title>Alteração de Palavras</title>
+  <title>Carregando...</title>
 
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
@@ -92,6 +92,12 @@
     return urlParams.get(param);
   }
 
+  function aplicarTituloPagina(mode) {
+    document.title = (mode === 'pe')
+      ? 'Acesso aos arquivos'
+      : 'Alteração de Palavras';
+  }
+
   // Lê hash no formato: #pe/<idCurto>
   function parseHashRoute() {
     const raw = (window.location.hash || '').trim();
@@ -136,6 +142,8 @@
 
   const token = hashRoute ? hashRoute.token : kFromQuery;
   const mode = hashRoute ? hashRoute.mode : 'p';
+
+  aplicarTituloPagina(mode);
 
   if (!token) {
     showError('Identificador ausente na URL. Verifique se você abriu o link correto.');
@@ -183,6 +191,8 @@
       const r = parseHashRoute();
       if (!r) return;
       if (!isShortHexId(r.token)) return;
+
+      aplicarTituloPagina(r.mode);
 
       const qs2 = new URLSearchParams();
       qs2.set('token', r.token);
