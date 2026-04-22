@@ -92,25 +92,21 @@
     return urlParams.get(param);
   }
 
-  // Lê hash no formato: #pe/<token>  (ou #p/<token> se quiser no futuro)
+  // Lê hash no formato: #pe/<idCurto>
   function parseHashRoute() {
     const raw = (window.location.hash || '').trim();
     if (!raw || raw === '#') return null;
 
-    // remove '#'
     const h = raw.startsWith('#') ? raw.slice(1) : raw;
-
-    // aceita "pe/<token>" ou "/pe/<token>"
     const cleaned = h.startsWith('/') ? h.slice(1) : h;
 
     const parts = cleaned.split('/').filter(Boolean);
     if (parts.length < 2) return null;
 
     const mode = String(parts[0] || '').toLowerCase();
-    const token = String(parts[1] || '');
+    const token = String(parts[1] || '').trim();
 
-    // whitelist de modos que a gente aceita
-    if (mode !== 'pe' && mode !== 'p') return null;
+    if (mode !== 'pe') return null;
 
     return { mode, token };
   }
@@ -118,8 +114,8 @@
   // COLE AQUI O ID DA SUA WEB APP (APPS SCRIPT)
   const WEB_APP_ID = 'AKfycbyBwcYtRHTovbt-WLr_bGQvY5UZax8kppBOVwy91NgWSzJViiPh_Ek6HM_K7jolLfj3eA';
 
-  function isUuid(v) {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v || '');
+  function isShortHexId(v) {
+    return /^[0-9a-f]{16}$/i.test(String(v || '').trim());
   }
 
   function showError(msg) {
@@ -129,36 +125,33 @@
     err.style.display = 'block';
   }
 
-  // 1) Preferir hash (discreto): #pe/<token>
+  // PERSONALIZAVEL:
+  //   https://01mix.github.io/02/index.html?k=<idCurto>
+  //
+  // PRONTA_ENTREGA com portão:
+  //   https://01mix.github.io/02/index.html#pe/<idCurto>
+
   const hashRoute = parseHashRoute();
+  const kFromQuery = String(getQueryParam('k') || '').trim();
 
-  // 2) Fallback compatível: ?token=<token>&page=pe
-  const tokenFromQuery = getQueryParam('token');
-  const pageFromQuery = (getQueryParam('page') || '').toLowerCase();
-
-  // Resolve modo + token
-  const token = hashRoute ? hashRoute.token : tokenFromQuery;
-  const mode =
-    hashRoute ? hashRoute.mode :
-    (pageFromQuery === 'pe' ? 'pe' : 'p'); // default p (personalizável)
+  const token = hashRoute ? hashRoute.token : kFromQuery;
+  const mode = hashRoute ? hashRoute.mode : 'p';
 
   if (!token) {
-    showError('Token ausente na URL. Verifique se você abriu o link correto.');
-  } else if (!isUuid(token)) {
-    showError('Token inválido. Verifique se você abriu o link correto.');
+    showError('Identificador ausente na URL. Verifique se você abriu o link correto.');
+  } else if (!isShortHexId(token)) {
+    showError('Identificador inválido. Verifique se você abriu o link correto.');
   } else if (!WEB_APP_ID || WEB_APP_ID === 'COLE_AQUI_O_ID_DA_IMPLANTACAO') {
     showError('Configuração incompleta: WEB_APP_ID não foi definido no GitHub Pages.');
   } else {
     const iframe = document.getElementById('appsScriptFrame');
 
-    // fallback inicial: pelo menos ocupa a tela
     iframe.style.height = '100dvh';
 
-    // Monta URL do Apps Script
-    // p  = personalizável (como hoje) -> só token
-    // pe = portão -> token + page=pe
     const base = `https://script.google.com/macros/s/${WEB_APP_ID}/exec`;
     const qs = new URLSearchParams();
+
+    // Internamente, o Projeto B continua recebendo "token"
     qs.set('token', token);
     if (mode === 'pe') qs.set('page', 'pe');
 
@@ -170,7 +163,6 @@
       iframe.style.display = 'block';
     };
 
-    // ✅ Segurança: só aceitar postMessage do Apps Script
     window.addEventListener('message', function(event) {
       if (!event || !event.data) return;
 
@@ -187,12 +179,10 @@
       }
     });
 
-    // Opcional: se o usuário colar um link com hash, e o hash mudar (navegação),
-    // recarrega o iframe com o novo token/modo.
     window.addEventListener('hashchange', function() {
       const r = parseHashRoute();
       if (!r) return;
-      if (!isUuid(r.token)) return;
+      if (!isShortHexId(r.token)) return;
 
       const qs2 = new URLSearchParams();
       qs2.set('token', r.token);
